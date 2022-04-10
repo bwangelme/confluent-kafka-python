@@ -1849,8 +1849,8 @@ rd_kafka_conf_t *common_conf_setup (rd_kafka_type_t ktype,
                 PyDict_Update(confdict, kwargs);
         }
 
-        if (ktype == RD_KAFKA_CONSUMER &&
-                !PyDict_GetItemString(confdict, "group.id")) {
+        if (ktype == RD_KAFKA_CONSUMER
+                && !PyDict_GetItemString(confdict, "group.id")) {
 
                 PyErr_SetString(PyExc_ValueError,
                                 "Failed to create consumer: group.id must be set");
