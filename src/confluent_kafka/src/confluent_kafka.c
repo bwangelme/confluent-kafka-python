@@ -2542,7 +2542,9 @@ static struct PyModuleDef cimpl_moduledef = {
 static PyObject *_init_cimpl (void) {
     PyObject *m;
 
-        PyEval_InitThreads();
+#ifndef PY3
+    PyEval_InitThreads();
+#endif
 
     if (PyType_Ready(&KafkaErrorType) < 0)
         return NULL;
