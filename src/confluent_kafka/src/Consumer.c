@@ -904,36 +904,36 @@ static PyObject *Consumer_offsets_for_times (Handle *self, PyObject *args,
     rd_kafka_resp_err_t err;
     static char *kws[] = { "partitions", "timeout", NULL };
 
-        if (!self->rk) {
-                PyErr_SetString(PyExc_RuntimeError,
-                                "Consumer closed");
-                return NULL;
-        }
-
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|d", kws,
-                     &plist, &tmout))
+    if (!self->rk) {
+        PyErr_SetString(PyExc_RuntimeError, "Consumer closed");
         return NULL;
+    }
 
-        if (!(c_parts = py_to_c_parts(plist)))
-                return NULL;
+    if (!PyArg_ParseTupleAndKeywords(
+            args, kwargs, "O|d", kws, &plist, &tmout)) {
+        return NULL;
+    }
 
-        Py_BEGIN_ALLOW_THREADS;
-        err = rd_kafka_offsets_for_times(self->rk, c_parts,
-                                         cfl_timeout_ms(tmout));
-        Py_END_ALLOW_THREADS;
+    if (!(c_parts = py_to_c_parts(plist)))
+            return NULL;
 
-        if (err) {
-                rd_kafka_topic_partition_list_destroy(c_parts);
-                cfl_PyErr_Format(err,
-                                 "Failed to get offsets: %s",
-                                 rd_kafka_err2str(err));
-                return NULL;
-        }
+    Py_BEGIN_ALLOW_THREADS;
+    err = rd_kafka_offsets_for_times(self->rk, c_parts,
+                                     cfl_timeout_ms(tmout));
+    Py_END_ALLOW_THREADS;
 
-        plist = c_parts_to_py(c_parts);
+    if (err) {
         rd_kafka_topic_partition_list_destroy(c_parts);
+        cfl_PyErr_Format(err,
+                         "Failed to get offsets: %s",
+                         rd_kafka_err2str(err));
+        return NULL;
+    }
 
-        return plist;
+    plist = c_parts_to_py(c_parts);
+    rd_kafka_topic_partition_list_destroy(c_parts);
+
+    return plist;
 #endif
 }
 

@@ -321,23 +321,23 @@ static PyTypeObject KafkaErrorType = {
         "  txn_requires_abort (bool): Set to true if this is an abortable\n"
         "  transaction error.\n"
     "\n", /*tp_doc*/
-        (traverseproc)KafkaError_traverse, /* tp_traverse */
-    (inquiry)KafkaError_clear, /* tp_clear */
-    (richcmpfunc)KafkaError_richcompare, /* tp_richcompare */
-    0,                   /* tp_weaklistoffset */
-    0,                   /* tp_iter */
-    0,                   /* tp_iternext */
-    KafkaError_methods,    /* tp_methods */
-    0,                         /* tp_members */
-    0,                         /* tp_getset */
-    0,                         /* tp_base */
-    0,                         /* tp_dict */
-    0,                         /* tp_descr_get */
-    0,                         /* tp_descr_set */
-    0,                         /* tp_dictoffset */
-        KafkaError_init0,          /* tp_init */
-    0,                         /* tp_alloc */
-        KafkaError_new             /* tp_new */
+    (traverseproc)KafkaError_traverse,      /* tp_traverse */
+    (inquiry)KafkaError_clear,              /* tp_clear */
+    (richcmpfunc)KafkaError_richcompare,    /* tp_richcompare */
+    0,                                      /* tp_weaklistoffset */
+    0,                                      /* tp_iter */
+    0,                                      /* tp_iternext */
+    KafkaError_methods,                     /* tp_methods */
+    0,                                      /* tp_members */
+    0,                                      /* tp_getset */
+    0,                                      /* tp_base */
+    0,                                      /* tp_dict */
+    0,                                      /* tp_descr_get */
+    0,                                      /* tp_descr_set */
+    0,                                      /* tp_dictoffset */
+    KafkaError_init0,                       /* tp_init */
+    0,                                      /* tp_alloc */
+    KafkaError_new                          /* tp_new */
 };
 
 
@@ -408,9 +408,6 @@ static void cfl_PyErr_Fatal (rd_kafka_resp_err_t err, const char *reason) {
         ((KafkaError *)eo)->fatal = 1;
         PyErr_SetObject(KafkaException, eo);
 }
-
-
-
 
 
 /****************************************************************************
@@ -703,9 +700,9 @@ static PySequenceMethods Message_seq_methods = {
 
 PyTypeObject MessageType = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    "cimpl.Message",         /*tp_name*/
-    sizeof(Message),       /*tp_basicsize*/
-    0,                         /*tp_itemsize*/
+    "cimpl.Message",            /*tp_name*/
+    sizeof(Message),            /*tp_basicsize*/
+    0,                          /*tp_itemsize*/
     (destructor)Message_dealloc, /*tp_dealloc*/
     0,                         /*tp_print*/
     0,                         /*tp_getattr*/
@@ -721,8 +718,7 @@ PyTypeObject MessageType = {
     PyObject_GenericGetAttr,                         /*tp_getattro*/
     0,                         /*tp_setattro*/
     0,                         /*tp_as_buffer*/
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE |
-    Py_TPFLAGS_HAVE_GC, /*tp_flags*/
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HAVE_GC, /*tp_flags*/
     "The Message object represents either a single consumed or "
     "produced message, or an event (:py:func:`error()` is not None).\n"
     "\n"
@@ -737,22 +733,22 @@ PyTypeObject MessageType = {
     "  :returns: Message value (payload) size in bytes\n"
     "  :rtype: int\n"
     "\n", /*tp_doc*/
-    (traverseproc)Message_traverse,        /* tp_traverse */
-    (inquiry)Message_clear,               /* tp_clear */
-    0,                   /* tp_richcompare */
-    0,                   /* tp_weaklistoffset */
-    0,                   /* tp_iter */
-    0,                   /* tp_iternext */
-    Message_methods,       /* tp_methods */
-    0,                         /* tp_members */
-    0,                         /* tp_getset */
-    0,                         /* tp_base */
-    0,                         /* tp_dict */
-    0,                         /* tp_descr_get */
-    0,                         /* tp_descr_set */
-    0,                         /* tp_dictoffset */
-    0,                         /* tp_init */
-    0                          /* tp_alloc */
+    (traverseproc)Message_traverse,         /* tp_traverse */
+    (inquiry)Message_clear,                 /* tp_clear */
+    0,                                      /* tp_richcompare */
+    0,                                      /* tp_weaklistoffset */
+    0,                                      /* tp_iter */
+    0,                                      /* tp_iternext */
+    Message_methods,                        /* tp_methods */
+    0,                                      /* tp_members */
+    0,                                      /* tp_getset */
+    0,                                      /* tp_base */
+    0,                                      /* tp_dict */
+    0,                                      /* tp_descr_get */
+    0,                                      /* tp_descr_set */
+    0,                                      /* tp_dictoffset */
+    0,                                      /* tp_init */
+    0                                       /* tp_alloc */
 };
 
 /**

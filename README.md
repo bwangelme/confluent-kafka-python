@@ -14,11 +14,18 @@ creators of Kafka, is building a [streaming platform](https://www.confluent.io/p
 with Apache Kafka at its core. It's high priority for us that client features keep
 pace with core Apache Kafka and components of the [Confluent Platform](https://www.confluent.io/product/compare/).
 
-
 See the [API documentation](http://docs.confluent.io/current/clients/confluent-kafka-python/index.html) for more info.
 
 For a step-by-step guide on using the client see [Getting Started with Apache Kafka and Python](https://developer.confluent.io/get-started/python/).
 
+## 编译 & 安装
+
+C_INCLUDE_PATH=~/.local/rdkafka/include LIBRARY_PATH=~/.local/rdkafka/lib ./venv/bin/python setup.py install
+
+## 运行
+
+export DYLD_LIBRARY_PATH=~/.local/rdkafka/lib LD_LIBRARY_PATH=~/.local/rdkafka/lib
+./venv/bin/python examples/producer.py
 
 Usage
 =====
