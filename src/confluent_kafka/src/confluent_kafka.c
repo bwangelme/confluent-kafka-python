@@ -758,15 +758,16 @@ PyObject *Message_new0 (const Handle *handle, const rd_kafka_message_t *rkm) {
     Message *self;
 
     self = (Message *)MessageType.tp_alloc(&MessageType, 0);
-    if (!self)
+    if (!self) {
         return NULL;
+    }
 
-        /* Only use message error string on Consumer, for Producers
-         * it will contain the original message payload. */
-        self->error = KafkaError_new_or_None(
-                rkm->err,
-                (rkm->err && handle->type != RD_KAFKA_PRODUCER) ?
-                rd_kafka_message_errstr(rkm) : NULL);
+    /* Only use message error string on Consumer, for Producers
+     * it will contain the original message payload. */
+    self->error = KafkaError_new_or_None(
+        rkm->err,
+        (rkm->err && handle->type != RD_KAFKA_PRODUCER) ? rd_kafka_message_errstr(rkm) : NULL
+    );
 
     if (rkm->rkt)
         self->topic = cfl_PyUnistr(
@@ -1842,11 +1843,11 @@ rd_kafka_conf_t *common_conf_setup (rd_kafka_type_t ktype,
         PyDict_Update(confdict, kwargs);
     }
 
-    if (ktype == RD_KAFKA_CONSUMER \n
-            && !PyDict_GetItemString(confdict, "group.id")) {
-
-        PyErr_SetString(PyExc_ValueError,
-                        "Failed to create consumer: group.id must be set");
+    if (ktype == RD_KAFKA_CONSUMER && !PyDict_GetItemString(confdict, "group.id")) {
+        PyErr_SetString(
+            PyExc_ValueError,
+            "Failed to create consumer: group.id must be set"
+        );
         Py_DECREF(confdict);
         return NULL;
     }
@@ -2557,10 +2558,10 @@ static PyObject *_init_cimpl (void) {
         return NULL;
     if (PyType_Ready(&ConsumerType) < 0)
         return NULL;
-        if (PyType_Ready(&AdminType) < 0)
-                return NULL;
-        if (AdminTypes_Ready() < 0)
-                return NULL;
+    if (PyType_Ready(&AdminType) < 0)
+        return NULL;
+    if (AdminTypes_Ready() < 0)
+        return NULL;
 
 #ifdef PY3
     m = PyModule_Create(&cimpl_moduledef);
