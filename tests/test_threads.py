@@ -1,5 +1,13 @@
 #!/usr/bin/env python
 
+"""
+此测试主要用来测试，kafka producer 发送消息类，是否是线程安全的。
+
+她启动了4个线程同时发送，看这4个线程能否都发送成功。
+
+发送成功之后会抛出 IntendedException 异常，如果捕获到了这个异常则说明发送成功。
+"""
+
 from confluent_kafka import Producer
 import threading
 import time
@@ -19,13 +27,14 @@ def thread_run(myid, p, q):
 
     for i in range(1, 3):
         cb = None
+        # 每个线程只发送一条消息，从第二条开始发送线程就退出了。
         if i == 2:
             cb = do_crash
         p.produce('mytopic', value='hi', callback=cb)
         t = time.time()
         try:
             p.flush()
-            print(myid, 'Flush took %.3f' % (time.time() - t))
+            print(myid, 'Flush %s took %.3f' % (i, time.time() - t))
         except IntendedException:
             print(myid, "Intentional callback crash: ok")
             continue
@@ -38,8 +47,11 @@ def test_thread_safety():
     """ Basic thread safety tests. """
 
     q = Queue()
-    p = Producer({'socket.timeout.ms': 10,
-                  'message.timeout.ms': 10})
+    p = Producer({
+        'bootstrap.servers': 'localhost:9092',
+        'socket.timeout.ms': 10,
+        'message.timeout.ms': 10
+    })
 
     threads = list()
     for i in range(1, 5):
@@ -61,7 +73,7 @@ def test_thread_safety():
     if cnt != len(threads):
         raise Exception('Only %d/%d threads succeeded' % (cnt, len(threads)))
 
-    print('Done')
+    print('All Done')
 
 
 if __name__ == '__main__':
