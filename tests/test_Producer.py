@@ -2,8 +2,10 @@
 # -*- coding: utf-8 -*-
 import pytest
 
-from confluent_kafka import Producer, Consumer, KafkaError, KafkaException, \
-    TopicPartition, libversion
+from confluent_kafka import (
+    Producer, Consumer, KafkaError, KafkaException,
+    TopicPartition, libversion,
+)
 from struct import pack
 
 
@@ -19,9 +21,11 @@ def test_basic_api():
         p = Producer()
     assert ex.match('expected configuration dict')
 
-    p = Producer({'socket.timeout.ms': 10,
-                  'error_cb': error_cb,
-                  'message.timeout.ms': 10})
+    p = Producer({
+        'socket.timeout.ms': 10,
+        'error_cb': error_cb,
+        'message.timeout.ms': 10
+    })
 
     p.produce('mytopic')
     p.produce('mytopic', value='somedata', key='a key')
@@ -43,14 +47,17 @@ def test_basic_api():
     try:
         p.list_topics(timeout=0.2)
     except KafkaException as e:
-        assert e.args[0].code() in (KafkaError._TIMED_OUT, KafkaError._TRANSPORT)
+        assert e.args[0].code() in (
+        KafkaError._TIMED_OUT, KafkaError._TRANSPORT)
 
 
 def test_produce_timestamp():
     """ Test produce() with timestamp arg """
-    p = Producer({'socket.timeout.ms': 10,
-                  'error_cb': error_cb,
-                  'message.timeout.ms': 10})
+    p = Producer({
+                     'socket.timeout.ms': 10,
+                     'error_cb': error_cb,
+                     'message.timeout.ms': 10
+                 })
 
     # Requires librdkafka >=v0.9.4
 
@@ -69,9 +76,11 @@ def test_produce_timestamp():
                     reason="requires librdkafka >=0.11.4")
 def test_produce_headers():
     """ Test produce() with timestamp arg """
-    p = Producer({'socket.timeout.ms': 10,
-                  'error_cb': error_cb,
-                  'message.timeout.ms': 10})
+    p = Producer({
+                     'socket.timeout.ms': 10,
+                     'error_cb': error_cb,
+                     'message.timeout.ms': 10
+                 })
 
     binval = pack('hhl', 1, 2, 3)
 
@@ -91,7 +100,7 @@ def test_produce_headers():
         {'binaryval': binval},
         {'alreadyutf8': u'Småland'.encode('utf-8')},
         {'isunicode': 'Jämtland'}
-        ]
+    ]
 
     for headers in headers_to_test:
         print('headers', type(headers), headers)
@@ -102,7 +111,8 @@ def test_produce_headers():
         p.produce('mytopic', value='somedata', key='a key', headers=('a', 'b'))
 
     with pytest.raises(TypeError):
-        p.produce('mytopic', value='somedata', key='a key', headers=[('malformed_header')])
+        p.produce('mytopic', value='somedata', key='a key',
+                  headers=[('malformed_header')])
 
     with pytest.raises(TypeError):
         p.produce('mytopic', value='somedata', headers={'anint': 1234})
@@ -115,13 +125,17 @@ def test_produce_headers():
                     reason="Old versions should fail when using headers")
 def test_produce_headers_should_fail():
     """ Test produce() with timestamp arg """
-    p = Producer({'socket.timeout.ms': 10,
-                  'error_cb': error_cb,
-                  'message.timeout.ms': 10})
+    p = Producer({
+                     'socket.timeout.ms': 10,
+                     'error_cb': error_cb,
+                     'message.timeout.ms': 10
+                 })
 
     with pytest.raises(NotImplementedError) as ex:
-        p.produce('mytopic', value='somedata', key='a key', headers=[('headerkey', 'headervalue')])
-    assert ex.match('Producer message headers requires confluent-kafka-python built for librdkafka version >=v0.11.4')
+        p.produce('mytopic', value='somedata', key='a key',
+                  headers=[('headerkey', 'headervalue')])
+    assert ex.match(
+        'Producer message headers requires confluent-kafka-python built for librdkafka version >=v0.11.4')
 
 
 def test_subclassing():
@@ -189,7 +203,8 @@ def test_set_invalid_partitioner_murmur():
     """
     with pytest.raises(KafkaException) as ex:
         Producer({'partitioner': 'murmur'})
-    assert ex.match('Invalid value for configuration property "partitioner": murmur')
+    assert ex.match(
+        'Invalid value for configuration property "partitioner": murmur')
 
 
 def test_transaction_api():
@@ -244,7 +259,10 @@ def test_purge():
     to stop waiting for messages and get delivery reports
     """
     p = Producer(
-        {"socket.timeout.ms": 10, "error_cb": error_cb, "message.timeout.ms": 30000}
+        {
+            "socket.timeout.ms": 10, "error_cb": error_cb,
+            "message.timeout.ms": 30000
+        }
     )  # 30 seconds
 
     # Hack to detect on_delivery was called because inner functions can modify nonlocal objects.
@@ -257,7 +275,8 @@ def test_purge():
         assert err.code() == KafkaError._PURGE_QUEUE
 
     # Our message won't be delivered, but also won't timeout yet because our timeout is 30s.
-    p.produce(topic="some_topic", value="testing", partition=9, callback=on_delivery)
+    p.produce(topic="some_topic", value="testing", partition=9,
+              callback=on_delivery)
     p.flush(0.002)
     assert not cb_detector["on_delivery_called"]
 

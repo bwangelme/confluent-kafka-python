@@ -1796,113 +1796,110 @@ rd_kafka_conf_t *common_conf_setup (rd_kafka_type_t ktype,
     rd_kafka_conf_t *conf;
     Py_ssize_t pos = 0;
     PyObject *ko, *vo;
-        PyObject *confdict = NULL;
+    PyObject *confdict = NULL;
 
-        if (rd_kafka_version() < MIN_RD_KAFKA_VERSION) {
-                PyErr_Format(PyExc_RuntimeError,
-                             "%s: librdkafka version %s (0x%x) detected",
-                             MIN_VER_ERRSTR, rd_kafka_version_str(),
-                             rd_kafka_version());
-                return NULL;
+    if (rd_kafka_version() < MIN_RD_KAFKA_VERSION) {
+        PyErr_Format(PyExc_RuntimeError,
+                     "%s: librdkafka version %s (0x%x) detected",
+                     MIN_VER_ERRSTR, rd_kafka_version_str(),
+                     rd_kafka_version());
+        return NULL;
+    }
+
+    /* Supported parameter constellations:
+     *  - kwargs (conf={..}, logger=..)
+     *  - args and kwargs ({..}, logger=..)
+     *  - args ({..})
+     * When both args and kwargs are present the kwargs take
+     * precedence in case of duplicate keys.
+     * All keys map to configuration properties.
+     *
+     * Copy configuration dict to avoid manipulating application config.
+     */
+    if (args && PyTuple_Size(args)) {
+        if (!PyTuple_Check(args) || PyTuple_Size(args) > 1) {
+            PyErr_SetString(PyExc_TypeError,
+                            "expected tuple containing single dict");
+            return NULL;
+        } else if (PyTuple_Size(args) == 1 &&
+                   !PyDict_Check((confdict = PyTuple_GetItem(args, 0)))) {
+            PyErr_SetString(PyExc_TypeError, "expected configuration dict");
+            return NULL;
+        }
+        confdict = PyDict_Copy(confdict);
+    }
+
+    if (!confdict) {
+        if (!kwargs) {
+            PyErr_SetString(PyExc_TypeError, "expected configuration dict");
+            return NULL;
         }
 
-        /* Supported parameter constellations:
-         *  - kwargs (conf={..}, logger=..)
-         *  - args and kwargs ({..}, logger=..)
-         *  - args ({..})
-         * When both args and kwargs are present the kwargs take
-         * precedence in case of duplicate keys.
-         * All keys map to configuration properties.
-         *
-         * Copy configuration dict to avoid manipulating application config.
-         */
-        if (args && PyTuple_Size(args)) {
-                if (!PyTuple_Check(args) ||
-                    PyTuple_Size(args) > 1) {
-                        PyErr_SetString(PyExc_TypeError,
-                                        "expected tuple containing single dict");
-                        return NULL;
-                } else if (PyTuple_Size(args) == 1 &&
-                           !PyDict_Check((confdict = PyTuple_GetItem(args, 0)))) {
-                                PyErr_SetString(PyExc_TypeError,
-                                                "expected configuration dict");
-                                return NULL;
-                }
-                confdict = PyDict_Copy(confdict);
-        }
+        confdict = PyDict_Copy(kwargs);
 
-        if (!confdict) {
-                if (!kwargs) {
-                        PyErr_SetString(PyExc_TypeError,
-                                        "expected configuration dict");
-                        return NULL;
-                }
+    } else if (kwargs) {
+        /* Update confdict with kwargs */
+        PyDict_Update(confdict, kwargs);
+    }
 
-                confdict = PyDict_Copy(kwargs);
+    if (ktype == RD_KAFKA_CONSUMER \n
+            && !PyDict_GetItemString(confdict, "group.id")) {
 
-        } else if (kwargs) {
-                /* Update confdict with kwargs */
-                PyDict_Update(confdict, kwargs);
-        }
-
-        if (ktype == RD_KAFKA_CONSUMER &&
-                !PyDict_GetItemString(confdict, "group.id")) {
-
-                PyErr_SetString(PyExc_ValueError,
-                                "Failed to create consumer: group.id must be set");
-                Py_DECREF(confdict);
-                return NULL;
-        }
+        PyErr_SetString(PyExc_ValueError,
+                        "Failed to create consumer: group.id must be set");
+        Py_DECREF(confdict);
+        return NULL;
+    }
 
     conf = rd_kafka_conf_new();
 
-        /* Set software name and verison prior to applying the confdict to
-         * allow even higher-level clients to override it. */
-        common_conf_set_software(conf);
+    /* Set software name and verison prior to applying the confdict to
+     * allow even higher-level clients to override it. */
+    common_conf_set_software(conf);
 
-        /*
-         * Set debug contexts first to capture all events including plugin loading
-         */
-         if ((vo = PyDict_GetItemString(confdict, "debug")) &&
-              !common_conf_set_special(confdict, conf, "debug", vo))
-                        goto outer_err;
+    /*
+     * Set debug contexts first to capture all events including plugin loading
+     */
+     if ((vo = PyDict_GetItemString(confdict, "debug")) &&
+          !common_conf_set_special(confdict, conf, "debug", vo))
+        goto outer_err;
 
-        /*
-         * Plugins must be configured prior to handling any of their
-         * configuration properties.
-         * Dicts are unordered so we explicitly check for, set, and delete the
-         * plugin paths here.
-         * This ensures plugin configuration properties are handled in the
-         * correct order.
-         */
-        if ((vo = PyDict_GetItemString(confdict, "plugin.library.paths"))) {
-                /* Resolve plugin paths */
-                PyObject *resolved;
+    /*
+     * Plugins must be configured prior to handling any of their
+     * configuration properties.
+     * Dicts are unordered so we explicitly check for, set, and delete the
+     * plugin paths here.
+     * This ensures plugin configuration properties are handled in the
+     * correct order.
+     */
+    if ((vo = PyDict_GetItemString(confdict, "plugin.library.paths"))) {
+            /* Resolve plugin paths */
+            PyObject *resolved;
 
-                resolved = resolve_plugins(vo);
-                if (!resolved)
-                        goto outer_err;
+            resolved = resolve_plugins(vo);
+            if (!resolved)
+                    goto outer_err;
 
-                if (!common_conf_set_special(confdict, conf,
-                                             "plugin.library.paths",
-                                             resolved)) {
-                        Py_DECREF(resolved);
-                        goto outer_err;
-                }
-                Py_DECREF(resolved);
+            if (!common_conf_set_special(confdict, conf,
+                                         "plugin.library.paths",
+                                         resolved)) {
+                    Py_DECREF(resolved);
+                    goto outer_err;
+            }
+            Py_DECREF(resolved);
+    }
+
+    if ((vo = PyDict_GetItemString(confdict, "default.topic.config"))) {
+    /* TODO: uncomment for 1.0 release
+        PyErr_Warn(PyExc_DeprecationWarning,
+                     "default.topic.config has being deprecated, "
+                     "set default topic configuration values in the global dict");
+    */
+        if (PyDict_Update(confdict, vo) == -1) {
+                goto outer_err;
         }
-
-        if ((vo = PyDict_GetItemString(confdict, "default.topic.config"))) {
-        /* TODO: uncomment for 1.0 release
-                PyErr_Warn(PyExc_DeprecationWarning,
-                             "default.topic.config has being deprecated, "
-                             "set default topic configuration values in the global dict");
-        */
-                if (PyDict_Update(confdict, vo) == -1) {
-                        goto outer_err;
-                }
-                PyDict_DelItemString(confdict, "default.topic.config");
-        }
+        PyDict_DelItemString(confdict, "default.topic.config");
+    }
 
     /* Convert config dict to config key-value pairs. */
     while (PyDict_Next(confdict, &pos, &ko, &vo)) {
@@ -1912,23 +1909,24 @@ rd_kafka_conf_t *common_conf_setup (rd_kafka_type_t ktype,
         const char *k;
         const char *v;
         char errstr[256];
-                int r = 0;
+        int r = 0;
 
         if (!(ks = cfl_PyObject_Unistr(ko))) {
-                        PyErr_SetString(PyExc_TypeError,
-                                        "expected configuration property name "
-                                        "as type unicode string");
-                        goto inner_err;
+            PyErr_SetString(PyExc_TypeError,
+                            "expected configuration property name "
+                            "as type unicode string");
+            goto inner_err;
         }
 
         k = cfl_PyUnistr_AsUTF8(ks, &ks8);
         if (!strcmp(k, "error_cb")) {
             if (!PyCallable_Check(vo)) {
-                PyErr_SetString(PyExc_TypeError,
-                        "expected error_cb property "
-                        "as a callable function");
-                                goto inner_err;
-                        }
+                PyErr_SetString(
+                    PyExc_TypeError,
+                    "expected error_cb property as a callable function"
+                );
+                goto inner_err;
+            }
             if (h->error_cb) {
                 Py_DECREF(h->error_cb);
                 h->error_cb = NULL;
@@ -1937,34 +1935,37 @@ rd_kafka_conf_t *common_conf_setup (rd_kafka_type_t ktype,
                 h->error_cb = vo;
                 Py_INCREF(h->error_cb);
             }
-                        Py_XDECREF(ks8);
+
+            Py_XDECREF(ks8);
             Py_DECREF(ks);
             continue;
-                } else if (!strcmp(k, "throttle_cb")) {
-                        if (!PyCallable_Check(vo)) {
-                                PyErr_SetString(PyExc_ValueError,
-                                        "expected throttle_cb property "
-                                        "as a callable function");
-                                goto inner_err;
-                        }
-                        if (h->throttle_cb) {
-                                Py_DECREF(h->throttle_cb);
-                                h->throttle_cb = NULL;
-                        }
-                        if (vo != Py_None) {
-                                h->throttle_cb = vo;
-                                Py_INCREF(h->throttle_cb);
-                        }
-                        Py_XDECREF(ks8);
-                        Py_DECREF(ks);
-                        continue;
+        } else if (!strcmp(k, "throttle_cb")) {
+            if (!PyCallable_Check(vo)) {
+                PyErr_SetString(
+                    PyExc_ValueError,
+                    "expected throttle_cb property as a callable function"
+                );
+                goto inner_err;
+            }
+            if (h->throttle_cb) {
+                Py_DECREF(h->throttle_cb);
+                h->throttle_cb = NULL;
+            }
+            if (vo != Py_None) {
+                h->throttle_cb = vo;
+                Py_INCREF(h->throttle_cb);
+            }
+            Py_XDECREF(ks8);
+            Py_DECREF(ks);
+            continue;
         } else if (!strcmp(k, "stats_cb")) {
             if (!PyCallable_Check(vo)) {
-                PyErr_SetString(PyExc_TypeError,
-                        "expected stats_cb property "
-                        "as a callable function");
-                                goto inner_err;
-                        }
+                PyErr_SetString(
+                    PyExc_TypeError,
+                    "expected stats_cb property as a callable function"
+                );
+                goto inner_err;
+            }
 
             if (h->stats_cb) {
                 Py_DECREF(h->stats_cb);
@@ -1974,51 +1975,54 @@ rd_kafka_conf_t *common_conf_setup (rd_kafka_type_t ktype,
                 h->stats_cb = vo;
                 Py_INCREF(h->stats_cb);
             }
-                        Py_XDECREF(ks8);
+            Py_XDECREF(ks8);
             Py_DECREF(ks);
             continue;
-                } else if (!strcmp(k, "logger")) {
-                        if (h->logger) {
-                                Py_DECREF(h->logger);
-                                h->logger = NULL;
-                        }
+        } else if (!strcmp(k, "logger")) {
+            if (h->logger) {
+                Py_DECREF(h->logger);
+                h->logger = NULL;
+            }
 
-                        if (vo != Py_None) {
-                                h->logger = vo;
-                                Py_INCREF(h->logger);
-                        }
-                        Py_XDECREF(ks8);
-                        Py_DECREF(ks);
-                        continue;
-                } else if (!strcmp(k, "oauth_cb")) {
-                        if (!PyCallable_Check(vo)) {
-                                PyErr_SetString(PyExc_TypeError,
-                                                "expected oauth_cb property "
-                                                "as a callable function");
-                                goto inner_err;
-                        }
-                        if (h->oauth_cb) {
-                                Py_DECREF(h->oauth_cb);
-                                h->oauth_cb = NULL;
-                        }
+            if (vo != Py_None) {
+                h->logger = vo;
+                Py_INCREF(h->logger);
+            }
+            Py_XDECREF(ks8);
+            Py_DECREF(ks);
+            continue;
+        } else if (!strcmp(k, "oauth_cb")) {
+            if (!PyCallable_Check(vo)) {
+                PyErr_SetString(
+                    PyExc_TypeError,
+                    "expected oauth_cb property as a callable function"
+                );
+                goto inner_err;
+            }
+            if (h->oauth_cb) {
+                Py_DECREF(h->oauth_cb);
+                h->oauth_cb = NULL;
+            }
 
-                        if (vo != Py_None) {
-                                h->oauth_cb = vo;
-                                Py_INCREF(h->oauth_cb);
-                        }
-                        Py_XDECREF(ks8);
-                        Py_DECREF(ks);
-                        continue;
-                }
+            if (vo != Py_None) {
+                h->oauth_cb = vo;
+                Py_INCREF(h->oauth_cb);
+            }
+            Py_XDECREF(ks8);
+            Py_DECREF(ks);
+            continue;
+        }
 
         /* Special handling for certain config keys. */
-        if (ktype == RD_KAFKA_PRODUCER)
+        if (ktype == RD_KAFKA_PRODUCER) {
             r = producer_conf_set_special(h, conf, k, vo);
-        else if (ktype == RD_KAFKA_CONSUMER)
+        } else if (ktype == RD_KAFKA_CONSUMER) {
             r = consumer_conf_set_special(h, conf, k, vo);
+        }
+
         if (r == -1) {
             /* Error */
-                        goto inner_err;
+            goto inner_err;
         } else if (r == 1) {
             /* Handled */
             continue;
@@ -2028,82 +2032,83 @@ rd_kafka_conf_t *common_conf_setup (rd_kafka_type_t ktype,
         /*
          * Pass configuration property through to librdkafka.
          */
-                if (vo == Py_None) {
-                        v = NULL;
-                } else {
-                        if (!(vs = cfl_PyObject_Unistr(vo))) {
-                                PyErr_SetString(PyExc_TypeError,
-                                                "expected configuration "
-                                                "property value as type "
-                                                "unicode string");
-                                goto inner_err;
-                        }
-                        v = cfl_PyUnistr_AsUTF8(vs, &vs8);
-                }
-
-        if (rd_kafka_conf_set(conf, k, v, errstr, sizeof(errstr)) !=
-            RD_KAFKA_CONF_OK) {
-            cfl_PyErr_Format(RD_KAFKA_RESP_ERR__INVALID_ARG,
-                      "%s", errstr);
-                        goto inner_err;
+        if (vo == Py_None) {
+            v = NULL;
+        } else {
+            if (!(vs = cfl_PyObject_Unistr(vo))) {
+                PyErr_SetString(
+                    PyExc_TypeError,
+                    "expected configuration property value as type unicode string"
+                );
+                goto inner_err;
+            }
+            v = cfl_PyUnistr_AsUTF8(vs, &vs8);
         }
 
-                Py_XDECREF(vs8);
-                Py_XDECREF(vs);
-                Py_XDECREF(ks8);
+        if (rd_kafka_conf_set(conf, k, v, errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK) {
+            cfl_PyErr_Format(RD_KAFKA_RESP_ERR__INVALID_ARG, "%s", errstr);
+            goto inner_err;
+        }
+
+        Py_XDECREF(vs8);
+        Py_XDECREF(vs);
+        Py_XDECREF(ks8);
         Py_DECREF(ks);
-                continue;
+        continue;
 
 inner_err:
-                Py_XDECREF(vs8);
-                Py_XDECREF(vs);
-                Py_XDECREF(ks8);
-                Py_XDECREF(ks);
-                goto outer_err;
-        }
+        Py_XDECREF(vs8);
+        Py_XDECREF(vs);
+        Py_XDECREF(ks8);
+        Py_XDECREF(ks);
+        goto outer_err;
+    }
 
-        Py_DECREF(confdict);
+    Py_DECREF(confdict);
 
-        rd_kafka_conf_set_error_cb(conf, error_cb);
+    rd_kafka_conf_set_error_cb(conf, error_cb);
 
-        if (h->throttle_cb)
-                rd_kafka_conf_set_throttle_cb(conf, throttle_cb);
+    if (h->throttle_cb) {
+        rd_kafka_conf_set_throttle_cb(conf, throttle_cb);
+    }
 
-    if (h->stats_cb)
+    if (h->stats_cb) {
         rd_kafka_conf_set_stats_cb(conf, stats_cb);
+    }
 
-        if (h->logger) {
-                /* Write logs to log queue (which is forwarded
-                 * to the polled queue in the Producer/Consumer constructors) */
-                rd_kafka_conf_set(conf, "log.queue", "true", NULL, 0);
-                rd_kafka_conf_set_log_cb(conf, log_cb);
-        }
+    if (h->logger) {
+        /* Write logs to log queue (which is forwarded
+         * to the polled queue in the Producer/Consumer constructors) */
+        rd_kafka_conf_set(conf, "log.queue", "true", NULL, 0);
+        rd_kafka_conf_set_log_cb(conf, log_cb);
+    }
 
-        if (h->oauth_cb)
-                rd_kafka_conf_set_oauthbearer_token_refresh_cb(conf, oauth_cb);
+    if (h->oauth_cb) {
+        rd_kafka_conf_set_oauthbearer_token_refresh_cb(conf, oauth_cb);
+    }
 
     rd_kafka_conf_set_opaque(conf, h);
 
 #ifdef WITH_PY_TSS
-        if (PyThread_tss_create(&h->tlskey)) {
-                PyErr_SetString(PyExc_RuntimeError,
-                                "Failed to initialize thread local storage");
-                rd_kafka_conf_destroy(conf);
-                return NULL;
-        }
+    if (PyThread_tss_create(&h->tlskey)) {
+        PyErr_SetString(PyExc_RuntimeError,
+                        "Failed to initialize thread local storage");
+        rd_kafka_conf_destroy(conf);
+        return NULL;
+    }
 #else
-        h->tlskey = PyThread_create_key();
+    h->tlskey = PyThread_create_key();
 #endif
 
-        h->initiated = 1;
+    h->initiated = 1;
 
     return conf;
 
 outer_err:
-        Py_DECREF(confdict);
-        rd_kafka_conf_destroy(conf);
+    Py_DECREF(confdict);
+    rd_kafka_conf_destroy(conf);
 
-        return NULL;
+    return NULL;
 }
 
 
