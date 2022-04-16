@@ -1785,6 +1785,7 @@ static void common_conf_set_software (rd_kafka_conf_t *conf) {
 
 
 /**
+ * 这个函数主要用来检查 & 设置 kafka consumer, producer 的配置
  * Common config setup for Kafka client handles.
  *
  * Returns a conf object on success or NULL on failure in which case
@@ -1800,10 +1801,13 @@ rd_kafka_conf_t *common_conf_setup (rd_kafka_type_t ktype,
     PyObject *confdict = NULL;
 
     if (rd_kafka_version() < MIN_RD_KAFKA_VERSION) {
-        PyErr_Format(PyExc_RuntimeError,
-                     "%s: librdkafka version %s (0x%x) detected",
-                     MIN_VER_ERRSTR, rd_kafka_version_str(),
-                     rd_kafka_version());
+        PyErr_Format(
+            PyExc_RuntimeError,
+            "%s: librdkafka version %s (0x%x) detected",
+            MIN_VER_ERRSTR,
+            rd_kafka_version_str(),
+            rd_kafka_version()
+        );
         return NULL;
     }
 

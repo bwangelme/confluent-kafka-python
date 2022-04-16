@@ -355,12 +355,12 @@ static int Producer_poll0 (Handle *self, int tmout) {
 
 static PyObject *Producer_poll (Handle *self, PyObject *args,
                     PyObject *kwargs) {
-        double tmout = -1.0;
+    double tmout = -1.0;
     int r;
     static char *kws[] = { "timeout", NULL };
 
-        if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|d", kws, &tmout))
-                return NULL;
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|d", kws, &tmout))
+            return NULL;
 
     r = Producer_poll0(self, cfl_timeout_ms(tmout));
     if (r == -1)

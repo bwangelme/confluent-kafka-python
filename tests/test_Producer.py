@@ -24,7 +24,7 @@ def test_basic_api():
     p = Producer({
         'socket.timeout.ms': 10,
         'error_cb': error_cb,
-        'message.timeout.ms': 10
+        'message.timeout.ms': 10,
     })
 
     p.produce('mytopic')
@@ -47,17 +47,16 @@ def test_basic_api():
     try:
         p.list_topics(timeout=0.2)
     except KafkaException as e:
-        assert e.args[0].code() in (
-        KafkaError._TIMED_OUT, KafkaError._TRANSPORT)
+        assert e.args[0].code() in (KafkaError._TIMED_OUT, KafkaError._TRANSPORT)
 
 
 def test_produce_timestamp():
     """ Test produce() with timestamp arg """
     p = Producer({
-                     'socket.timeout.ms': 10,
-                     'error_cb': error_cb,
-                     'message.timeout.ms': 10
-                 })
+         'socket.timeout.ms': 10,
+         'error_cb': error_cb,
+         'message.timeout.ms': 10
+     })
 
     # Requires librdkafka >=v0.9.4
 
@@ -77,10 +76,10 @@ def test_produce_timestamp():
 def test_produce_headers():
     """ Test produce() with timestamp arg """
     p = Producer({
-                     'socket.timeout.ms': 10,
-                     'error_cb': error_cb,
-                     'message.timeout.ms': 10
-                 })
+        'socket.timeout.ms': 10,
+        'error_cb': error_cb,
+        'message.timeout.ms': 10
+    })
 
     binval = pack('hhl', 1, 2, 3)
 
@@ -118,6 +117,7 @@ def test_produce_headers():
         p.produce('mytopic', value='somedata', headers={'anint': 1234})
 
     p.flush()
+    assert False
 
 
 # Should be updated to 0.11.4 when it is released
